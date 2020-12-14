@@ -3,12 +3,13 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.applications import EfficientNetB3
 import cv2
 from PIL import Image
 import albumentations as alb
 import matplotlib.pyplot as plt
 from tensorflow.keras.layers import Dense, Dropout, GlobalAveragePooling2D
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 
 # constants
 leaf_df = pd.read_csv('~/Projects/cassava_data/train.csv')
@@ -148,16 +149,20 @@ def valid_generator():
 
             yield (np.array(x_batch), np.array(y_batch))
 
+# callbacks
+callbacks = [ReduceLROnPlateau(monitor='val_loss', patience=1, verbose=1, factor=0.5),
+             EarlyStopping(monitor='val_loss', patience=4),
+             ModelCheckpoint(filepath='best_model.h5', monitor='val_loss', save_best_only=True)]
 
 
 # define pretrained model
-pre_trained_model = EfficientNetB0(
+pre_trained_model = EfficientNetB3(
                                    weights=None, 
                                    include_top=False,
                                    input_shape=input_shape,
                                   )
 
-pre_trained_model.load_weights('efficientnetb0_notop.h5')
+pre_trained_model.load_weights('efficientnetb3_notop.h5')
 pre_trained_model.trainable = True
 
 dropout_rate = 0.3
@@ -182,9 +187,10 @@ model.compile(loss = 'sparse_categorical_crossentropy',
 # fit the model
 model.fit(
     train_generator(),
-    epochs= 3,
+    epochs= 20,
     steps_per_epoch= num_train // batch_size,
     validation_data= valid_generator(),
     validation_steps = num_valid // batch_size,
     class_weight=class_weights,
+    #callbacks=callbacks,
 )   
